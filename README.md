@@ -62,9 +62,22 @@ Name |	string | Name of the Restaurant
 Request URL (GET):
  /restaurants/{id}
 
- #### Getting list og all restaurants:
+#### Getting list og all restaurants:
 Request URL (GET):
   /restaurants
+
+#### Uploading a restaurant menu:
+Request URL (POST):
+ /restaurants/{id}/menu/
+
+Property Name |	Type |	Notes
+--- | --- | ---
+Text |	string | Menu text
+Date |	string | Menu date
+
+#### Get todays menu:
+Request URL (GET):
+ /today
 
 
 

@@ -1,6 +1,7 @@
 import unittest
 import json
 from app import create_app, db
+from datetime import datetime, timedelta
 
 class RestaurantsTestCase(unittest.TestCase):
     def setUp(self):
@@ -8,7 +9,7 @@ class RestaurantsTestCase(unittest.TestCase):
         self.app = create_app(config_name="testing")
         self.client = self.app.test_client
         self.restaurant = {'name': 'McDonalds'}
-        self.menu = {'text': 'Buger', 'date': '2017-07-01'}
+        self.menu = {'text': 'Buger', 'for_date': '2017-07-01'}
 
         # binds the app to the current context
         with self.app.app_context():
@@ -22,14 +23,12 @@ class RestaurantsTestCase(unittest.TestCase):
             db.session.remove()
             db.drop_all()
 
-    @unittest.skip("temp")
     def test_restaurant_creation(self):
         """Test API can create a restaurant (POST request)"""
         res = self.client().post('/restaurants/', data=self.restaurant)
         self.assertEqual(res.status_code, 201)
         self.assertIn(self.restaurant['name'], str(res.data))
 
-    @unittest.skip("temp")
     def test_api_can_get_all_restaurants(self):
         """Test API can get all restaurants (GET request)."""
         res = self.client().post('/restaurants/', data=self.restaurant)
@@ -38,7 +37,6 @@ class RestaurantsTestCase(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertIn(self.restaurant['name'], str(res.data))
 
-    @unittest.skip("temp")
     def test_api_can_get_restaurant_by_id(self):
         """Test API can get a single restaurant by using it's id."""
         rv = self.client().post('/restaurants/', data=self.restaurant)
@@ -49,7 +47,6 @@ class RestaurantsTestCase(unittest.TestCase):
         self.assertEqual(result.status_code, 200)
         self.assertIn(self.restaurant['name'], str(result.data))
 
-    @unittest.skip("temp")
     def test_menu_upload(self):
         """Test API can upload menu for a restaurant (POST request)"""
         res = self.client().post('/restaurants/', data=self.restaurant)
@@ -88,7 +85,6 @@ class RestaurantsTestCase(unittest.TestCase):
 
     def test_replaces_menu_for_the_same_date(self):
         res = self.client().post('/restaurants/', data=self.restaurant)
-        self.assertEqual(res.status_code, 201)
         result_in_json = json.loads(res.data.decode('utf-8').replace("'", "\""))
         restaurant_id = result_in_json['id']
         self.menu['restaurant_id'] = restaurant_id
@@ -101,7 +97,44 @@ class RestaurantsTestCase(unittest.TestCase):
             '/restaurants/{}/menu/'.format(restaurant_id),
             data=self.menu)
         result_in_json = json.loads(res.data.decode('utf-8').replace("'", "\""))
+
         self.assertEqual(first_id, result_in_json['id'])
+
+    def test_returns_menu_for_foday(self):
+        # make a restaurant
+        res = self.client().post('/restaurants/', data=self.restaurant)
+        result_in_json = json.loads(res.data.decode('utf-8').replace("'", "\""))
+        restaurant_id = result_in_json['id']
+        self.menu['restaurant_id'] = restaurant_id
+
+        # upload menu for yesterday
+        self.menu['date'] = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        res = self.client().post(
+            '/restaurants/{}/menu/'.format(restaurant_id),
+            data=self.menu)
+
+        # upload menu for today
+        self.menu['date'] = datetime.now().strftime('%Y-%m-%d')
+        res = self.client().post(
+            '/restaurants/{}/menu/'.format(restaurant_id),
+            data=self.menu)
+        result_in_json = json.loads(res.data.decode('utf-8').replace("'", "\""))
+        todays_menu_id = result_in_json['id']
+
+        # upload menu for tomorrow
+        self.menu['date'] = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+        res = self.client().post(
+            '/restaurants/{}/menu/'.format(restaurant_id),
+            data=self.menu)
+
+        res = self.client().get('/today')
+
+        result_in_json = json.loads(res.data.decode('utf-8').replace("'", "\""))
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(1, len(result_in_json))
+        self.assertEqual(todays_menu_id, result_in_json[0][0])
+
 
 if __name__ == "__main__":
     unittest.main()

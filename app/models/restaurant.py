@@ -34,15 +34,17 @@ class Menu(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     text = db.Column(db.Text)
     for_date = db.Column(db.DateTime, default=db.func.current_timestamp())
-    restaurant = db.Column(db.Integer, db.ForeignKey(Restaurant.id))
+    restaurant_id = db.Column(db.Integer, db.ForeignKey(Restaurant.id))
     date_created = db.Column(db.DateTime, default=db.func.current_timestamp())
     date_modified = db.Column(
         db.DateTime, default=db.func.current_timestamp(),
         onupdate=db.func.current_timestamp())
 
-    def __init__(self, restaurant, for_date, text):
+    restaurant = db.relationship("Restaurant")
+
+    def __init__(self, restaurant_id, for_date, text):
         """initialize with restaurant, date and menu text."""
-        self.restaurant = restaurant
+        self.restaurant_id = restaurant_id
         self.for_date = for_date
         self.text = text
 

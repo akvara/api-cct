@@ -87,9 +87,9 @@ def create_app(config_name):
             response.status_code = 200
             return response
 
-        menu = Menu.query.filter_by(restaurant=restaurant.id, for_date=for_date).first()
+        menu = Menu.query.filter_by(restaurant_id=restaurant.id, for_date=for_date).first()
         if not menu:
-            menu = Menu(text=text, restaurant=restaurant.id, for_date=for_date)
+            menu = Menu(text=text, restaurant_id=restaurant.id, for_date=for_date)
         else:
             menu.text = text
         menu.save()
@@ -101,6 +101,18 @@ def create_app(config_name):
         response.status_code = 201
         return response
 
+    @app.route('/today', methods=['GET'])
+    def menu_for_today(**kwargs):
+        date_today = datetime.now().strftime('%Y-%m-%d')
+        for_today = db.session\
+            .query(Menu.id, Restaurant.name, Menu.text)\
+            .join(Restaurant)\
+            .filter(Menu.for_date == date_today)\
+            .all()
+
+        response = jsonify(for_today)
+        response.status_code = 200
+        return response
 
 
     from .auth import auth_blueprint
