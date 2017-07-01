@@ -1,8 +1,8 @@
 from app import db
+from flask import current_app
 from flask_bcrypt import Bcrypt
-import jwt
 from datetime import datetime, timedelta
-from flask import Flask, current_app
+import jwt
 
 class User(db.Model):
     __tablename__ = 'users'

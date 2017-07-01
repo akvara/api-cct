@@ -2,6 +2,7 @@ import unittest
 import json
 from app import create_app, db
 
+@unittest.skip("temp")
 class AuthTestCase(unittest.TestCase):
     """Test case for the authentication blueprint."""
 
@@ -59,3 +60,6 @@ class AuthTestCase(unittest.TestCase):
         self.assertEqual(res.status_code, 401)
         self.assertEqual(
             result['message'], "Invalid email or password, Please try again")
+
+if __name__ == "__main__":
+    unittest.main()
