@@ -2,6 +2,7 @@ from flask import request, jsonify, abort, make_response
 from flask_api import FlaskAPI
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from sqlalchemy import func
 
 from instance.config import app_config
 
@@ -121,14 +122,14 @@ def create_app(config_name):
     def accept_vote():
         # Get the access token from the header
         auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            abort(401)
         access_token = auth_header.split(" ")[1]
 
         if access_token:
             # Attempt to decode the token and get the User ID
             user_id = User.decode_token(access_token)
             if not isinstance(user_id, str):
-                # Go ahead and handle the request, the user is authenticated
-
                 for_menu = str(request.data.get('for_menu', ''))
                 # TODO: vote only for existing menu
 
@@ -151,6 +152,28 @@ def create_app(config_name):
                     'message': message
                 }
                 return make_response(jsonify(response)), 401
+
+    @app.route('/winner', methods=['GET'])
+    def winner_for_today(**kwargs):
+        date_today = datetime.now().strftime('%Y-%m-%d')
+
+        counted_votes = db.session \
+            .query(func.count(Vote.id).label('total'), Vote.for_menu)\
+            .filter(Vote.for_date == date_today) \
+            .group_by(Vote.for_menu)\
+            .order_by('total DESC')\
+            .all()
+
+        max_votes = counted_votes[0][0]
+
+        winners = [v[1] for v in counted_votes if v[0] == max_votes]
+        if len(winners) == 1:
+            winners = winners[0]
+        winners = {'winner': winners, 'wanted_by': max_votes}
+
+        response = jsonify(winners)
+        response.status_code = 200
+        return response
 
     from .auth import auth_blueprint
     app.register_blueprint(auth_blueprint)

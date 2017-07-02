@@ -153,10 +153,8 @@ class RestaurantsTestCase(unittest.TestCase):
         self.assertEqual(todays_menu_id, result_in_json[0][0])
 
     def test_vote_creation(self):
-        # register a test user, then log them in
         user = self.register_user()
         result = self.login_user()
-        # obtain the access token
         access_token = json.loads(result.data.decode())['access_token']
         user_id = User.decode_token(access_token)
 
@@ -171,11 +169,32 @@ class RestaurantsTestCase(unittest.TestCase):
             data=vote)
 
         self.assertEqual(res.status_code, 201)
-        
+
         result_in_json = json.loads(res.data.decode('utf-8').replace("'", "\""))
 
         self.assertEqual(vote['user_id'], result_in_json['user_id'])
         self.assertEqual(vote['for_menu'], result_in_json['for_menu'])
+
+    def test_unregistered_users_cannot_vote(self):
+        # TODO:
+        pass
+
+    def test_duplicating_vote_is_replaced(self):
+        # TODO:
+        pass
+
+    def test_no_vote_for_non_existing_menu(self):
+        # TODO:
+        pass
+
+    def test_one_winner(self):
+        # TODO:
+        pass
+
+    def test_several_winners(self):
+        # TODO:
+        pass
+
 
 if __name__ == "__main__":
     unittest.main()

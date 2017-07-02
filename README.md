@@ -79,6 +79,19 @@ Date |	string | Menu date
 Request URL (GET):
  /today
 
+### Voting
+#### Vote:
+Request URL (POST):
+ /vote
+
+Property Name |	Type |	Notes
+--- | --- | ---
+For_menu |	int | Menu id
+
+#### Get winner for today:
+Request URL (GET):
+ /winner
+
 
 
 
