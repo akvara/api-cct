@@ -3,6 +3,8 @@ from flask_api import FlaskAPI
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from sqlalchemy import func
+import logging
+from logging.handlers import RotatingFileHandler
 
 from instance.config import app_config
 
@@ -205,6 +207,10 @@ def create_app(config_name):
 
     from .auth import auth_blueprint
     app.register_blueprint(auth_blueprint)
+
+    handler = RotatingFileHandler('api-cct.log', maxBytes=10000, backupCount=1)
+    handler.setLevel(logging.INFO)
+    app.logger.addHandler(handler)
 
     return app
 
