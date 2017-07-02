@@ -1,4 +1,5 @@
 from app import db
+from .user import User
 
 class Restaurant(db.Model):
 
@@ -43,7 +44,6 @@ class Menu(db.Model):
     restaurant = db.relationship("Restaurant")
 
     def __init__(self, restaurant_id, for_date, text):
-        """initialize with restaurant, date and menu text."""
         self.restaurant_id = restaurant_id
         self.for_date = for_date
         self.text = text
@@ -52,5 +52,23 @@ class Menu(db.Model):
         db.session.add(self)
         db.session.commit()
 
-    def __repr__(self):
-        return "<Menu: {}>".format(self.text)
+
+class Vote(db.Model):
+
+    __tablename__ = 'votes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    for_menu = db.Column(db.Integer)
+    for_date = db.Column(db.DateTime, default=db.func.current_timestamp())
+    user_id = db.Column(db.Integer, db.ForeignKey(User.id))
+
+    user = db.relationship("User")
+
+    def __init__(self, user_id, for_date, for_menu):
+        self.user_id = user_id
+        self.for_date = for_date
+        self.for_menu = for_menu
+
+    def save(self):
+        db.session.add(self)
+        db.session.commit()

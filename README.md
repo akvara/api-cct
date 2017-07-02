@@ -40,7 +40,7 @@ python run.py
 Request URL (POST):
  /auth/register
 
-Property Name |	Type |	Notes
+Property Name |	Type |	NotesMenu
 --- | --- | ---
 email |	string | Email as username
 password |	string | User's password

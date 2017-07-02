@@ -2,6 +2,8 @@ import unittest
 import json
 from app import create_app, db
 from datetime import datetime, timedelta
+from app.models.user import User
+
 
 class RestaurantsTestCase(unittest.TestCase):
     def setUp(self):
@@ -22,6 +24,21 @@ class RestaurantsTestCase(unittest.TestCase):
             # drop all tables
             db.session.remove()
             db.drop_all()
+
+    def register_user(self, email="user@test.com", password="test1234"):
+        user_data = {
+            'email': email,
+            'password': password
+        }
+        self.client().post('/auth/register', data=user_data)
+        return 1
+
+    def login_user(self, email="user@test.com", password="test1234"):
+        user_data = {
+            'email': email,
+            'password': password
+        }
+        return self.client().post('/auth/login', data=user_data)
 
     def test_restaurant_creation(self):
         """Test API can create a restaurant (POST request)"""
@@ -135,6 +152,30 @@ class RestaurantsTestCase(unittest.TestCase):
         self.assertEqual(1, len(result_in_json))
         self.assertEqual(todays_menu_id, result_in_json[0][0])
 
+    def test_vote_creation(self):
+        # register a test user, then log them in
+        user = self.register_user()
+        result = self.login_user()
+        # obtain the access token
+        access_token = json.loads(result.data.decode())['access_token']
+        user_id = User.decode_token(access_token)
+
+        vote = {
+            'user_id': user_id,
+            'for_menu': 1
+        }
+
+        res = self.client().post(
+            '/vote/',
+            headers=dict(Authorization="Bearer " + access_token),
+            data=vote)
+
+        self.assertEqual(res.status_code, 201)
+        
+        result_in_json = json.loads(res.data.decode('utf-8').replace("'", "\""))
+
+        self.assertEqual(vote['user_id'], result_in_json['user_id'])
+        self.assertEqual(vote['for_menu'], result_in_json['for_menu'])
 
 if __name__ == "__main__":
     unittest.main()

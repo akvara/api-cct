@@ -1,4 +1,4 @@
-from flask import request, jsonify, abort
+from flask import request, jsonify, abort, make_response
 from flask_api import FlaskAPI
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
@@ -8,7 +8,7 @@ from instance.config import app_config
 db = SQLAlchemy()
 
 def create_app(config_name):
-    from app.models.restaurant import Restaurant, Menu
+    from app.models.restaurant import Restaurant, Menu, Vote
     from app.models.user import User
 
     app = FlaskAPI(__name__, instance_relative_config=True)
@@ -20,6 +20,8 @@ def create_app(config_name):
     @app.route('/restaurants/', methods=['POST', 'GET'])
     def restaurants():
         if request.method == "POST":
+            # TODO: making restaurant only for Admin
+
             name = str(request.data.get('name', ''))
             if name:
                 restaurant = Restaurant(name=name)
@@ -67,6 +69,7 @@ def create_app(config_name):
     @app.route('/restaurants/<int:id>/menu/', methods=['POST'])
     def menu_manipulation(id, **kwargs):
         restaurant = Restaurant.query.filter_by(id=id).first()
+        # TODO: uploading menu only for Admin
 
         if not restaurant:
             response = jsonify({"error": 'Restaurant not found'})
@@ -114,6 +117,40 @@ def create_app(config_name):
         response.status_code = 200
         return response
 
+    @app.route('/vote/', methods=['POST'])
+    def accept_vote():
+        # Get the access token from the header
+        auth_header = request.headers.get('Authorization')
+        access_token = auth_header.split(" ")[1]
+
+        if access_token:
+            # Attempt to decode the token and get the User ID
+            user_id = User.decode_token(access_token)
+            if not isinstance(user_id, str):
+                # Go ahead and handle the request, the user is authenticated
+
+                for_menu = str(request.data.get('for_menu', ''))
+                # TODO: vote only for existing menu
+
+                today = datetime.now().strftime('%Y-%m-%d')
+                vote = Vote(user_id=user_id, for_date=today, for_menu=for_menu)
+                vote.save()
+                response = jsonify({
+                    'id': vote.id,
+                    'user_id': vote.user_id,
+                    'for_menu': vote.for_menu,
+                    'for_date': vote.for_date,
+                })
+
+                return make_response(response), 201
+
+            else:
+                # user is not legit, so the payload is an error message
+                message = user_id
+                response = {
+                    'message': message
+                }
+                return make_response(jsonify(response)), 401
 
     from .auth import auth_blueprint
     app.register_blueprint(auth_blueprint)
