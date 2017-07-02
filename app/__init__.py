@@ -94,11 +94,14 @@ def create_app(config_name):
         menu = Menu.query.filter_by(restaurant_id=restaurant.id, for_date=for_date).first()
         if not menu:
             menu = Menu(text=text, restaurant_id=restaurant.id, for_date=for_date)
+            menu.save()
         else:
             menu.text = text
-        menu.save()
+            menu.replace()
+
         response = jsonify({
             'id': menu.id,
+            'text': menu.text,
             'date_created': menu.date_created,
             'date_modified': menu.date_modified
         })
@@ -116,10 +119,28 @@ def create_app(config_name):
 
         response = jsonify(for_today)
         response.status_code = 200
+        return response\
+
+    @app.route('/votes', methods=['GET'])
+    def votes_all(**kwargs):
+        # date_today = datetime.now().strftime('%Y-%m-%d')
+        votes = Restaurant.get_all()
+        results = []
+
+        for vote in votes:
+            obj = {
+                'id': vote.id,
+                'user_id': vote.user_id,
+                'for_date': vote.for_date,
+                'for_menu': vote.for_menu,
+            }
+            results.append(obj)
+        response = jsonify(results)
+        response.status_code = 200
         return response
 
     @app.route('/vote/', methods=['POST'])
-    def accept_vote():
+    def accept_vote(**kwargs):
         # Get the access token from the header
         auth_header = request.headers.get('Authorization')
         if not auth_header:
@@ -134,8 +155,15 @@ def create_app(config_name):
                 # TODO: vote only for existing menu
 
                 today = datetime.now().strftime('%Y-%m-%d')
-                vote = Vote(user_id=user_id, for_date=today, for_menu=for_menu)
-                vote.save()
+                vote = Vote.query.filter_by(user_id=user_id, for_date=today).first()
+
+                if not vote:
+                    vote = Vote(user_id=user_id, for_date=today, for_menu=for_menu)
+                    vote.save()
+                else:
+                    vote.for_menu = for_menu
+                    vote.save()
+
                 response = jsonify({
                     'id': vote.id,
                     'user_id': vote.user_id,
@@ -161,7 +189,7 @@ def create_app(config_name):
             .query(func.count(Vote.id).label('total'), Vote.for_menu)\
             .filter(Vote.for_date == date_today) \
             .group_by(Vote.for_menu)\
-            .order_by('total DESC')\
+            .order_by('total desc')\
             .all()
 
         max_votes = counted_votes[0][0]

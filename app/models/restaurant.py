@@ -52,6 +52,9 @@ class Menu(db.Model):
         db.session.add(self)
         db.session.commit()
 
+    def replace(self):
+        db.session.commit()
+
 
 class Vote(db.Model):
 
@@ -69,6 +72,13 @@ class Vote(db.Model):
         self.for_date = for_date
         self.for_menu = for_menu
 
+    @staticmethod
+    def get_all():
+        return Vote.query.all()
+
     def save(self):
         db.session.add(self)
+        db.session.commit()
+
+    def replace(self):
         db.session.commit()

@@ -3,6 +3,7 @@ import json
 from app import create_app, db
 from datetime import datetime, timedelta
 from app.models.user import User
+from app.models.restaurant import Vote
 
 
 class RestaurantsTestCase(unittest.TestCase):
@@ -30,8 +31,7 @@ class RestaurantsTestCase(unittest.TestCase):
             'email': email,
             'password': password
         }
-        self.client().post('/auth/register', data=user_data)
-        return 1
+        return self.client().post('/auth/register', data=user_data)
 
     def login_user(self, email="user@test.com", password="test1234"):
         user_data = {
@@ -39,6 +39,19 @@ class RestaurantsTestCase(unittest.TestCase):
             'password': password
         }
         return self.client().post('/auth/login', data=user_data)
+
+    def register_login_and_vote(self, vote, email="user@test.com"):
+        self.register_user(email=email)
+        result = self.login_user(email=email)
+        access_token = json.loads(result.data.decode())['access_token']
+        user_id = User.decode_token(access_token)
+
+        vote['user_id'] = user_id
+
+        return self.client().post(
+            '/vote/',
+            headers=dict(Authorization="Bearer " + access_token),
+            data=vote)
 
     def test_restaurant_creation(self):
         """Test API can create a restaurant (POST request)"""
@@ -76,8 +89,7 @@ class RestaurantsTestCase(unittest.TestCase):
             data=self.menu)
         self.assertEqual(res.status_code, 201)
 
-
-    def test_returns_error_on_no_restaurant(self):
+    def test_returns_error_on_menu_no_restaurant(self):
         res = self.client().post('/restaurants/', data=self.restaurant)
         self.assertEqual(res.status_code, 201)
         result_in_json = json.loads(res.data.decode('utf-8').replace("'", "\""))
@@ -88,7 +100,7 @@ class RestaurantsTestCase(unittest.TestCase):
             data=self.menu)
         self.assertEqual(res.status_code, 400)
 
-    def test_returns_error_on_wrong_date(self):
+    def test_returns_error_on_wrong_menu_date(self):
         res = self.client().post('/restaurants/', data=self.restaurant)
         self.assertEqual(res.status_code, 201)
         result_in_json = json.loads(res.data.decode('utf-8').replace("'", "\""))
@@ -110,12 +122,13 @@ class RestaurantsTestCase(unittest.TestCase):
             data=self.menu)
         result_in_json = json.loads(res.data.decode('utf-8').replace("'", "\""))
         first_id = result_in_json['id']
+        self.menu['text'] = "New menu"
         res = self.client().post(
             '/restaurants/{}/menu/'.format(restaurant_id),
             data=self.menu)
         result_in_json = json.loads(res.data.decode('utf-8').replace("'", "\""))
-
         self.assertEqual(first_id, result_in_json['id'])
+        self.assertEqual("New menu", result_in_json['text'])
 
     def test_returns_menu_for_foday(self):
         # make a restaurant
@@ -153,20 +166,11 @@ class RestaurantsTestCase(unittest.TestCase):
         self.assertEqual(todays_menu_id, result_in_json[0][0])
 
     def test_vote_creation(self):
-        user = self.register_user()
-        result = self.login_user()
-        access_token = json.loads(result.data.decode())['access_token']
-        user_id = User.decode_token(access_token)
-
         vote = {
-            'user_id': user_id,
             'for_menu': 1
         }
 
-        res = self.client().post(
-            '/vote/',
-            headers=dict(Authorization="Bearer " + access_token),
-            data=vote)
+        res = self.register_login_and_vote(vote)
 
         self.assertEqual(res.status_code, 201)
 
@@ -176,25 +180,86 @@ class RestaurantsTestCase(unittest.TestCase):
         self.assertEqual(vote['for_menu'], result_in_json['for_menu'])
 
     def test_unregistered_users_cannot_vote(self):
-        # TODO:
-        pass
+        vote = {
+            'for_menu': 1,
+            'user_id': 1
+        }
+
+        res = self.client().post(
+            '/vote/',
+            data=vote)
+
+        self.assertEqual(res.status_code, 401)
 
     def test_duplicating_vote_is_replaced(self):
-        # TODO:
-        pass
+        vote = {'for_menu': 1}
+        self.register_user()
+        result = self.login_user()
+        access_token = json.loads(result.data.decode())['access_token']
+        user_id = User.decode_token(access_token)
 
+        vote['user_id'] = user_id
+
+        res = self.client().post(
+            '/vote/',
+            headers=dict(Authorization="Bearer " + access_token),
+            data=vote)
+
+        result_in_json = json.loads(res.data.decode('utf-8').replace("'", "\""))
+        vote_id = result_in_json['id']
+        vote['for_menu'] = 2
+
+        res = self.client().post(
+            '/vote/',
+            headers=dict(Authorization="Bearer " + access_token),
+            data=vote)
+        self.assertEqual(res.status_code, 201)
+        result_in_json = json.loads(res.data.decode('utf-8').replace("'", "\""))
+
+        self.assertEqual(vote_id, result_in_json['id'])
+        self.assertEqual(2, result_in_json['for_menu'])
+
+    @unittest.skip("temp")
     def test_no_vote_for_non_existing_menu(self):
-        # TODO:
-        pass
+        vote = {
+            'for_menu': 10
+        }
+
+        res = self.register_login_and_vote(vote)
+
+        self.assertEqual(res.status_code, 400)
 
     def test_one_winner(self):
-        # TODO:
-        pass
+        vote = {'for_menu': 1}
+        self.register_login_and_vote(vote, "user1@cct.lt")
+
+        vote = {'for_menu': 2}
+        self.register_login_and_vote(vote, "user2@cct.lt")
+        self.register_login_and_vote(vote, "user3@cct.lt")
+        self.register_login_and_vote(vote, "user4@cct.lt")
+
+        res = self.client().get('/winner')
+        result_in_json = json.loads(res.data.decode('utf-8').replace("'", "\""))
+
+        self.assertEqual(2, result_in_json['winner'])
+        self.assertEqual(3, result_in_json['wanted_by'])
 
     def test_several_winners(self):
-        # TODO:
-        pass
+        vote = {'for_menu': 2}
 
+        self.register_login_and_vote(vote, "user1@cct.lt")
+        self.register_login_and_vote(vote, "user2@cct.lt")
+
+        vote = {'for_menu': 1}
+        self.register_login_and_vote(vote, "user3@cct.lt")
+        self.register_login_and_vote(vote, "user4@cct.lt")
+
+        res = self.client().get('/winner')
+
+        result_in_json = json.loads(res.data.decode('utf-8').replace("'", "\""))
+
+        self.assertEqual([1, 2], result_in_json['winner'])
+        self.assertEqual(2, result_in_json['wanted_by'])
 
 if __name__ == "__main__":
     unittest.main()
